@@ -1,7 +1,7 @@
 # Muninn - Server Monitoring Telegram Bot
 
 <p align="center">
-  <img src="assets/images/MuninnLogo.png" alt="Muninn Logo" width="150" height="150">
+  <img src="assets/images/MuninnLogo.png" alt="Muninn Logo" width="300" height="300">
 </p>
 
 Muninn is a lightweight Telegram bot for monitoring Linux servers. It provides a convenient way to remotely check server status, system resources, network information, and Docker containers through simple commands.
