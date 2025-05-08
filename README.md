@@ -101,38 +101,74 @@ The bot is designed to be modular and easily extended with new commands. To add 
 To run the bot as a systemd service:
 
 1. Create a service file:
-   ```
+   ```bash
    sudo nano /etc/systemd/system/muninn.service
    ```
 
-2. Add the following content:
-   ```
+2. Add the following content (replace placeholders with your actual values):
+   ```ini
    [Unit]
    Description=Muninn Telegram Bot
    After=network.target
-
+   
    [Service]
-   User=your_username
+   # Replace USER with your actual username
+   User=%USER%
+   # Replace /path/to/Muninn with the full path to your installation
    WorkingDirectory=/path/to/Muninn
-   ExecStart=/usr/bin/python3 /path/to/Muninn/src/main.py
+   # Use the full path to your Python interpreter and main script
+   ExecStart=%PYTHON_PATH% /path/to/Muninn/src/main.py
+   # Restart policy
    Restart=on-failure
    RestartSec=10
+   # Logging
    StandardOutput=journal
    StandardError=journal
-
+   
    [Install]
    WantedBy=multi-user.target
    ```
 
-3. Enable and start the service:
+3. Replace the placeholders:
+   ```bash
+   # Find your username
+   echo $USER
+   
+   # Find your Python path (with venv activated)
+   which python
+   
+   # Example of a completed service file
+   [Unit]
+   Description=Muninn Telegram Bot
+   After=network.target
+   
+   [Service]
+   User=john
+   WorkingDirectory=/home/john/projects/Muninn
+   ExecStart=/home/john/projects/Muninn/venv/bin/python /home/john/projects/Muninn/src/main.py
+   Restart=on-failure
+   RestartSec=10
+   StandardOutput=journal
+   StandardError=journal
+   
+   [Install]
+   WantedBy=multi-user.target
    ```
+
+4. Enable and start the service:
+   ```bash
    sudo systemctl enable muninn.service
    sudo systemctl start muninn.service
    ```
 
-4. Check the status:
-   ```
+5. Check the status:
+   ```bash
    sudo systemctl status muninn.service
+   ```
+
+6. View logs if needed:
+   ```bash
+   sudo journalctl -u muninn.service -f
    ```
 
 ## Troubleshooting

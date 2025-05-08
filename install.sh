@@ -1,126 +1,138 @@
 #!/bin/bash
 
-set -e
-
-# Colors for output
+# Color definitions
+RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
-print_status() {
-    echo -e "${GREEN}[+] $1${NC}"
-}
+echo -e "${BLUE}====================================${NC}"
+echo -e "${GREEN}Muninn Telegram Bot Installer${NC}"
+echo -e "${BLUE}====================================${NC}"
 
-print_warning() {
-    echo -e "${YELLOW}[!] $1${NC}"
-}
+# Get the current directory of the script
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
-print_error() {
-    echo -e "${RED}[ERROR] $1${NC}"
-}
+# Get current user
+CURRENT_USER=$(whoami)
 
-# Check if script is run as root
-if [[ $EUID -eq 0 ]]; then
-    print_error "This script should not be run as root."
-    print_warning "Please run as a regular user. The script will use sudo when needed."
-    exit 1
-fi
-
-# Get the directory where the script is located
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd "$SCRIPT_DIR"
-
-print_status "Starting Muninn installation at $(date)"
-
-# Check for required tools
-print_status "Checking for required tools..."
-for cmd in python3 pip3 systemctl; do
-    if ! command -v $cmd &> /dev/null; then
-        print_error "$cmd is required but not installed. Please install it and try again."
+# Find Python interpreter
+if [ -d "${SCRIPT_DIR}/venv" ]; then
+    PYTHON_PATH="${SCRIPT_DIR}/venv/bin/python"
+    echo -e "${GREEN}✓${NC} Found virtual environment Python at: ${PYTHON_PATH}"
+else
+    PYTHON_PATH=$(which python3)
+    if [ -z "$PYTHON_PATH" ]; then
+        PYTHON_PATH=$(which python)
+    fi
+    
+    if [ -z "$PYTHON_PATH" ]; then
+        echo -e "${RED}✗ Error: Python interpreter not found${NC}"
+        echo "Please install Python 3 and try again"
         exit 1
     fi
-done
-
-# Create virtual environment
-print_status "Creating Python virtual environment..."
-if [ -d "venv" ]; then
-    print_warning "Virtual environment already exists. Using existing environment."
-else
-    python3 -m venv venv
+    
+    echo -e "${YELLOW}!${NC} No virtual environment found. Using system Python: ${PYTHON_PATH}"
+    echo -e "${YELLOW}!${NC} It's recommended to create a virtual environment:"
+    echo "    python3 -m venv venv"
+    echo "    source venv/bin/activate"
+    echo "    pip install -r requirements.txt"
+    echo ""
 fi
 
-# Activate virtual environment
-print_status "Activating virtual environment..."
-source venv/bin/activate
-
-# Install required packages
-print_status "Installing required packages..."
-pip install --upgrade pip
-pip install -r requirements.txt
-
-# Create .env file if it doesn't exist
-if [ ! -f ".env" ]; then
-    print_status "Creating skeleton .env file..."
-    cat > .env << EOL
-# Telegram Bot Token (get from BotFather)
-TELEGRAM_BOT_TOKEN=your_bot_token_here
-
-# Comma-separated list of authorized Telegram user IDs
-AUTHORIZED_USERS=123456789,987654321
-EOL
-    print_warning "Please edit the .env file with your Telegram Bot token and authorized user IDs."
-else
-    print_warning ".env file already exists. Not overwriting."
+# Check for .env file
+if [ ! -f "${SCRIPT_DIR}/.env" ]; then
+    echo -e "${YELLOW}!${NC} No .env file found"
+    echo -e "Would you like to create a .env file now? [y/N] "
+    read -r CREATE_ENV
+    
+    if [[ $CREATE_ENV =~ ^[Yy]$ ]]; then
+        echo -e "${BLUE}→${NC} Please enter your Telegram Bot Token: "
+        read -r BOT_TOKEN
+        
+        echo -e "${BLUE}→${NC} Please enter authorized Telegram user IDs (comma-separated): "
+        read -r USER_IDS
+        
+        echo "TELEGRAM_BOT_TOKEN=${BOT_TOKEN}" > "${SCRIPT_DIR}/.env"
+        echo "AUTHORIZED_USERS=${USER_IDS}" >> "${SCRIPT_DIR}/.env"
+        
+        echo -e "${GREEN}✓${NC} Created .env file"
+    else
+        echo -e "${YELLOW}!${NC} Skipping .env creation"
+        echo "Please create a .env file manually before running the bot"
+    fi
 fi
 
-# Create systemd service file
-print_status "Creating systemd service file..."
+# Create the service file
+echo -e "\n${BLUE}→${NC} Creating systemd service file..."
 
-# Get absolute paths for service file
-ABSOLUTE_PATH="$SCRIPT_DIR"
-PYTHON_PATH="$ABSOLUTE_PATH/venv/bin/python3"
-BOT_PATH="$ABSOLUTE_PATH/src/main.py"
-USERNAME="$(whoami)"
-
-# Create temporary service file
-cat > /tmp/muninn.service << EOL
-[Unit]
+# Prepare the service file content
+SERVICE_CONTENT="[Unit]
 Description=Muninn Telegram Bot
 After=network.target
 
 [Service]
-User=$USERNAME
-WorkingDirectory=$ABSOLUTE_PATH
-ExecStart=$PYTHON_PATH $BOT_PATH
+User=${CURRENT_USER}
+WorkingDirectory=${SCRIPT_DIR}
+ExecStart=${PYTHON_PATH} ${SCRIPT_DIR}/src/main.py
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal
 StandardError=journal
-Environment=PATH=$ABSOLUTE_PATH/venv/bin:/usr/local/bin:/usr/bin:/bin
-Environment=PYTHONPATH=$ABSOLUTE_PATH
 
 [Install]
-WantedBy=multi-user.target
-EOL
+WantedBy=multi-user.target"
 
-# Install service file
-print_status "Installing systemd service (requires sudo)..."
-sudo mv /tmp/muninn.service /etc/systemd/system/muninn.service
-sudo systemctl daemon-reload
+# Write to muninn.service file
+echo "${SERVICE_CONTENT}" > "${SCRIPT_DIR}/muninn.service"
+echo -e "${GREEN}✓${NC} Created muninn.service file with your configuration"
 
-print_status "Installation completed successfully!"
-print_status "You can now:"
-print_status "1. Edit the .env file with your Telegram Bot token:"
-echo "   nano $ABSOLUTE_PATH/.env"
-print_status "2. Enable and start the Muninn service:"
-echo "   sudo systemctl enable muninn.service"
-echo "   sudo systemctl start muninn.service"
-print_status "3. Check the status of the service:"
-echo "   sudo systemctl status muninn.service"
+# Ask about installing as a system service
+echo -e "\n${BLUE}→${NC} Would you like to install Muninn as a system service? [y/N] "
+read -r INSTALL_SERVICE
 
-# Make the main script executable
-chmod +x src/main.py
+if [[ $INSTALL_SERVICE =~ ^[Yy]$ ]]; then
+    if [ "$EUID" -ne 0 ]; then
+        echo -e "${YELLOW}!${NC} Root permissions required to install the service"
+        echo -e "${BLUE}→${NC} Running with sudo..."
+        
+        # Copy the service file to systemd directory
+        sudo cp "${SCRIPT_DIR}/muninn.service" /etc/systemd/system/
+        
+        # Reload systemd, enable and start the service
+        echo -e "${BLUE}→${NC} Enabling and starting service..."
+        sudo systemctl daemon-reload
+        sudo systemctl enable muninn.service
+        sudo systemctl start muninn.service
+        
+        echo -e "${GREEN}✓${NC} Muninn service installed and started"
+        echo -e "${BLUE}→${NC} To check service status: sudo systemctl status muninn.service"
+        echo -e "${BLUE}→${NC} To view logs: sudo journalctl -u muninn.service -f"
+    else
+        # Already running as root
+        cp "${SCRIPT_DIR}/muninn.service" /etc/systemd/system/
+        
+        # Reload systemd, enable and start the service
+        echo -e "${BLUE}→${NC} Enabling and starting service..."
+        systemctl daemon-reload
+        systemctl enable muninn.service
+        systemctl start muninn.service
+        
+        echo -e "${GREEN}✓${NC} Muninn service installed and started"
+        echo -e "${BLUE}→${NC} To check service status: systemctl status muninn.service"
+        echo -e "${BLUE}→${NC} To view logs: journalctl -u muninn.service -f"
+    fi
+else
+    echo -e "${YELLOW}!${NC} Skipping service installation"
+    echo -e "${BLUE}→${NC} You can install it later with:"
+    echo "    sudo cp ${SCRIPT_DIR}/muninn.service /etc/systemd/system/"
+    echo "    sudo systemctl daemon-reload"
+    echo "    sudo systemctl enable muninn.service"
+    echo "    sudo systemctl start muninn.service"
+fi
 
-print_status "Muninn installation completed at $(date)"
-print_warning "Remember to edit your .env file before starting the service!" 
+echo -e "\n${GREEN}Installation completed!${NC}"
+echo -e "You can now run the bot manually with: ${PYTHON_PATH} ${SCRIPT_DIR}/src/main.py"
+echo -e "Or use the systemd service if you installed it."
+echo -e "${BLUE}====================================${NC}" 
