@@ -1,6 +1,19 @@
 # Muninn - Server Monitoring Telegram Bot
 
-Muninn is a Telegram bot for monitoring my Linux servers. A custom-built solution for remotely checking server status such as Docker containers, and system resources through simple commands.
+Muninn is a lightweight Telegram bot for monitoring Linux servers. It provides a convenient way to remotely check server status, system resources, network information, and Docker containers through simple commands.
+
+Named after one of Odin's ravens in Norse mythology who brought information from around the world, Muninn keeps you informed about your server's health and status.
+
+## Features
+
+- 🔄 **Server Status**: Basic connectivity and uptime checks
+- 🐳 **Docker Monitoring**: List running containers with status, image info, and port mappings
+- ⚡ **System Load**: CPU usage, memory usage, and load averages with GPU support
+- 💾 **Disk Usage**: Storage information with warning for high-usage partitions
+- 🌐 **Network Monitoring**: Connection statistics, active connections, and open ports
+- 📊 **Full Reports**: Generate comprehensive reports with all metrics
+- ⏱️ **Scheduled Reports**: Configure automatic hourly/daily reports
+- 🔒 **User Authorization**: Limit bot access to specific Telegram users
 
 ## Setup
 
@@ -10,12 +23,18 @@ Muninn is a Telegram bot for monitoring my Linux servers. A custom-built solutio
    cd Muninn
    ```
 
-2. Install the required dependencies:
+2. Create and activate a virtual environment (recommended):
+   ```
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. Install the required dependencies:
    ```
    pip install -r requirements.txt
    ```
 
-3. Create a `.env` file with your Telegram Bot token:
+4. Create a `.env` file with your Telegram Bot token:
    ```
    TELEGRAM_BOT_TOKEN=your_bot_token_here
    AUTHORIZED_USERS=comma_separated_list_of_telegram_user_ids
@@ -24,9 +43,9 @@ Muninn is a Telegram bot for monitoring my Linux servers. A custom-built solutio
    To get a bot token, talk to [BotFather](https://t.me/BotFather) on Telegram.
    To find your Telegram user ID, talk to [userinfobot](https://t.me/userinfobot).
 
-4. Run the bot:
+5. Run the bot:
    ```
-   python muninn_bot.py
+   python src/main.py
    ```
 
 ## Usage
@@ -36,51 +55,40 @@ Send the following commands to the bot:
 - `/start` - Welcome message and command list
 - `/status` - Check if the server is online
 - `/docker` - List running Docker containers
-- `/load` - Show server load average
-- `/disk` - Show disk usage
+- `/load` - Show server load average and GPU information
+- `/disk` - Show disk usage with warnings for high-usage partitions
+- `/network` - Show network connections, interfaces and open ports
 - `/report` - Generate a full server report with all metrics
 - `/schedule hourly` - Enable hourly automatic reports
 - `/schedule daily` - Enable daily automatic reports
 - `/schedule disable` - Disable automatic reports
 - `/help` - Display available commands
 
-## Extending the Bot
+## Project Structure
 
-The bot is designed to be easily extended with new commands. To add a new monitoring function:
-
-1. Add a new data collection function in the "MONITORING FUNCTIONS" section
-2. Add a new command handler in the "COMMAND HANDLERS" section
-3. Register the new command in the main() function
-4. Update the help_command() and start() functions to include your new command
-
-Example for adding a new "network" command:
-
-```python
-# In the MONITORING FUNCTIONS section
-def get_network_info():
-    """Get network usage information."""
-    # Your code to collect network data
-    return formatted_message
-
-# In the COMMAND HANDLERS section
-@restricted
-def network_command(update: Update, context: CallbackContext) -> None:
-    """Show network usage."""
-    message = get_network_info()
-    update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN)
-
-# In the main() function, add:
-dispatcher.add_handler(CommandHandler("network", network_command))
+```
+Muninn/
+├── src/
+│   ├── muninn/
+│   │   ├── handlers/      # Telegram command handlers
+│   │   ├── monitors/      # Server monitoring modules
+│   │   ├── utils/         # Utility functions
+│   │   └── bot.py         # Main bot implementation
+│   └── main.py            # Entry point
+├── .env                   # Environment variables
+├── requirements.txt       # Python dependencies
+└── README.md              # Documentation
 ```
 
-Don't forget to update the full report function to include your new metrics:
+## Adding New Monitoring Functions
 
-```python
-def get_full_report():
-    # ...existing code...
-    report += get_network_info() + "\n\n"
-    # ...existing code...
-```
+The bot is designed to be modular and easily extended with new commands. To add a new monitoring function:
+
+1. Create a new module in the `src/muninn/monitors/` directory
+2. Add a getter function to the `Monitors` class in `src/muninn/monitors/all.py`
+3. Create a command handler in `src/muninn/handlers/commands.py`
+4. Register the command in the handlers dictionary in `src/muninn/bot.py`
+5. Update the help text in `start()` and `help_command()` functions
 
 ## Run as a Service
 
@@ -100,7 +108,7 @@ To run the bot as a systemd service:
    [Service]
    User=your_username
    WorkingDirectory=/path/to/Muninn
-   ExecStart=/usr/bin/python3 /path/to/Muninn/muninn_bot.py
+   ExecStart=/usr/bin/python3 /path/to/Muninn/src/main.py
    Restart=on-failure
    RestartSec=10
    StandardOutput=journal
@@ -119,4 +127,8 @@ To run the bot as a systemd service:
 4. Check the status:
    ```
    sudo systemctl status muninn.service
-   ``` 
+   ```
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details. 
