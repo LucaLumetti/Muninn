@@ -4,8 +4,50 @@ Server load monitoring
 
 import logging
 import psutil
+import subprocess
+import re
+from shutil import which
 
 logger = logging.getLogger(__name__)
+
+def get_nvidia_gpu_info():
+    """Get information about NVIDIA GPUs using nvidia-smi."""
+    if not which('nvidia-smi'):
+        return None
+    
+    try:
+        result = subprocess.run(
+            ['nvidia-smi', '--query-gpu=index,name,temperature.gpu,utilization.gpu,utilization.memory,memory.used,memory.total,power.draw', 
+             '--format=csv,noheader,nounits'],
+            capture_output=True, text=True, check=True
+        )
+        
+        gpus = []
+        for line in result.stdout.strip().split('\n'):
+            if not line.strip():
+                continue
+                
+            parts = [p.strip() for p in line.split(',')]
+            if len(parts) >= 8:
+                gpu = {
+                    'index': parts[0],
+                    'name': parts[1],
+                    'temp': parts[2],
+                    'gpu_util': parts[3],
+                    'mem_util': parts[4],
+                    'mem_used': parts[5],
+                    'mem_total': parts[6],
+                    'power': parts[7]
+                }
+                gpus.append(gpu)
+        
+        return gpus
+    except (subprocess.SubprocessError, FileNotFoundError):
+        logger.warning("nvidia-smi command failed")
+        return None
+    except Exception as e:
+        logger.error(f"Error getting GPU info: {e}")
+        return None
 
 def get_load_info():
     """Get server load information."""
@@ -40,6 +82,21 @@ def get_load_info():
         reply += f"*Memory Usage:*\n"
         reply += f"├─ Used: `{memory_used_gb:.2f} GB` of `{memory_total_gb:.2f} GB`\n"
         reply += f"└─ Percentage: `{memory_percent}%`\n"
+        
+        # Get GPU information if available
+        gpus = get_nvidia_gpu_info()
+        if gpus:
+            reply += f"\n*GPU Information:*\n"
+            for i, gpu in enumerate(gpus):
+                reply += f"*GPU {gpu['index']}: {gpu['name']}*\n"
+                reply += f"├─ Temperature: `{gpu['temp']}°C`\n"
+                reply += f"├─ GPU Usage: `{gpu['gpu_util']}%`\n"
+                reply += f"├─ Memory: `{gpu['mem_used']} MB` / `{gpu['mem_total']} MB` (`{gpu['mem_util']}%`)\n"
+                reply += f"└─ Power: `{gpu['power']} W`\n"
+                
+                # Add a separator between GPUs except for the last one
+                if i < len(gpus) - 1:
+                    reply += "\n"
         
         return reply
     

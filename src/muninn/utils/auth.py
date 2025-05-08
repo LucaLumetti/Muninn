@@ -6,7 +6,7 @@ import os
 import logging
 from functools import wraps
 from telegram import Update
-from telegram.ext import CallbackContext
+from telegram.ext import ContextTypes
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +21,11 @@ def user_authorized(user_id):
 def restricted(func):
     """Decorator for restricting bot usage to authorized users."""
     @wraps(func)
-    def wrapped(update, context, *args, **kwargs):
+    async def wrapped(update, context, *args, **kwargs):
         user_id = update.effective_user.id
         if not user_authorized(user_id):
             logger.warning(f"Unauthorized access denied for {user_id}")
-            update.message.reply_text("You are not authorized to use this bot.")
+            await update.message.reply_text("You are not authorized to use this bot.")
             return
-        return func(update, context, *args, **kwargs)
+        return await func(update, context, *args, **kwargs)
     return wrapped 

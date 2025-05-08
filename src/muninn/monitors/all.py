@@ -6,6 +6,7 @@ from .status import get_status_info
 from .load import get_load_info
 from .disk import get_disk_info
 from .docker import get_docker_info
+from .network import get_network_info
 
 class Monitors:
     """Class to access all monitoring functions."""
@@ -28,4 +29,9 @@ class Monitors:
     @staticmethod
     def get_docker_info():
         """Get information about running Docker containers."""
-        return get_docker_info() 
+        return get_docker_info()
+    
+    @staticmethod
+    def get_network_info():
+        """Get network information."""
+        return get_network_info() 

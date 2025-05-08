@@ -4,13 +4,15 @@ Docker containers monitoring
 
 import logging
 import docker
+from docker.errors import DockerException
 
 logger = logging.getLogger(__name__)
 
 def get_docker_info():
     """Get information about running Docker containers."""
     try:
-        client = docker.from_env()
+        # Use unix socket connection instead of http+docker
+        client = docker.DockerClient(base_url='unix://var/run/docker.sock')
         containers = client.containers.list()
         
         if not containers:
@@ -45,6 +47,9 @@ def get_docker_info():
             
         return reply
     
+    except DockerException as e:
+        logger.error(f"Error in get_docker_info: {e}")
+        return f"Error connecting to Docker: {e}"
     except Exception as e:
         logger.error(f"Error in get_docker_info: {e}")
         return f"Error retrieving Docker information: {e}" 
