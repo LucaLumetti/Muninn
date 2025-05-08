@@ -1,5 +1,9 @@
 # Muninn - Server Monitoring Telegram Bot
 
+<p align="center">
+  <img src="assets/images/MuninnLogo.png" alt="Muninn Logo" width="150" height="150">
+</p>
+
 Muninn is a lightweight Telegram bot for monitoring Linux servers. It provides a convenient way to remotely check server status, system resources, network information, and Docker containers through simple commands.
 
 Named after one of Odin's ravens in Norse mythology who brought information from around the world, Muninn keeps you informed about your server's health and status.
@@ -68,6 +72,8 @@ Send the following commands to the bot:
 
 ```
 Muninn/
+├── assets/
+│   └── images/            # Project images (including logo)
 ├── src/
 │   ├── muninn/
 │   │   ├── handlers/      # Telegram command handlers
@@ -128,6 +134,24 @@ To run the bot as a systemd service:
    ```
    sudo systemctl status muninn.service
    ```
+
+## Troubleshooting
+
+### Markdown Parsing Issues
+If you see "Can't parse entities" errors in your logs, it's likely due to Telegram's strict Markdown parsing. The bot now uses HTML formatting for complex outputs like network information to avoid these issues.
+
+### Git Pre-Commit Hook Warning
+If you're developing and see warnings about potential secrets in network.py, you can:
+1. Add `# noqa` at the end of the line that's triggering the warning
+2. Use `git commit --no-verify` to bypass the check
+3. Modify the pre-commit hook to ignore code that handles network connections
+
+## Dependencies
+
+- `python-telegram-bot`: Telegram Bot API wrapper
+- `psutil`: System monitoring utilities
+- `python-dotenv`: Environment variable management
+- `docker`: Docker API client
 
 ## License
 
